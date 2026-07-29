@@ -618,16 +618,6 @@ cool2: cool1 -> cool on wire rack
         return esc(str).replace(/\*(.+?)\*/g, '<b>$1</b>');
     }
 
-    // Pushes one {top,bottom,step:null,skip:false} entry per row in [top,bottom]
-    // instead of a single merged multi-row entry. Rendered as individual per-row
-    // <td class="blank"> cells (see render()), so each one naturally gets its own
-    // border-top from the base `table.diagram td` rule — giving every step's true
-    // bottom edge a horizontal line that already reaches the ingredient column,
-    // with no extra JS-computed overlay needed.
-    function pushBlankRows(cells, top, bottom) {
-        for (let r = top; r <= bottom; r++) cells.push({top: r, bottom: r, step: null, skip: false});
-    }
-
     function render(recipe) {
         const totalCols = 1 + recipe.colCount;
         let html = '';
@@ -652,7 +642,7 @@ cool2: cool1 -> cool on wire rack
             const cells = [];
             let cursor = 0;
             byCol[c].forEach(s => {
-                if (s.top > cursor) pushBlankRows(cells, cursor, s.top - 1);
+                if (s.top > cursor) cells.push({top: cursor, bottom: s.top - 1, step: null, skip: false});
                 // split the step's [top,bottom] range into contiguous used/unused runs
                 let runStart = s.top, runUsed = null, firstUsedRun = true;
                 for (let r = s.top; r <= s.bottom + 1; r++) {
@@ -677,13 +667,40 @@ cool2: cool1 -> cool on wire rack
                 }
                 cursor = s.bottom + 1;
             });
-            if (cursor <= recipe.rowCount - 1) pushBlankRows(cells, cursor, recipe.rowCount - 1);
+            if (cursor <= recipe.rowCount - 1) cells.push({
+                top: cursor,
+                bottom: recipe.rowCount - 1,
+                step: null,
+                skip: false
+            });
             colCells[c] = cells;
         }
 
-        // render row by row using a "who owns this row" pointer per column (rowspan skips)
-        const colPos = {}; // c -> index into colCells[c]
-        for (let c = 1; c <= recipe.colCount; c++) colPos[c] = 0;
+        // Flatten each column's run-list into a per-row lookup grid, so any row/col
+        // can be queried directly (colGrid[c][r] -> the run entry that owns that row).
+        const colGrid = {};
+        for (let c = 1; c <= recipe.colCount; c++) {
+            const grid = new Array(recipe.rowCount);
+            colCells[c].forEach(cell => {
+                for (let r = cell.top; r <= cell.bottom; r++) grid[r] = cell;
+            });
+            colGrid[c] = grid;
+        }
+        const isBlankAt = (r, c) => {
+            const cell = colGrid[c][r];
+            return !cell.step && !cell.skip;
+        };
+
+        // Render row by row. `owned[r][c]` marks cells already emitted as part of a
+        // rowspan/colspan above/left of the current position. Step/skip cells keep
+        // using their precomputed per-column [top,bottom] run (they occupy exactly
+        // one column by design). Blank cells are merged into the widest+tallest
+        // rectangle available at each position: first grow rightward while the
+        // neighboring column is also blank and unowned, then grow downward while
+        // that whole row of columns stays blank and unowned — so empty space renders
+        // as the fewest, largest rectangles instead of one narrow strip per column.
+        const owned = [];
+        for (let r = 0; r < recipe.rowCount; r++) owned.push(new Array(recipe.colCount + 1).fill(false));
 
         for (let r = 0; r < recipe.rowCount; r++) {
             html += '<tr>';
@@ -694,16 +711,15 @@ cool2: cool1 -> cool on wire rack
             html += `</td>`;
 
             for (let c = 1; c <= recipe.colCount; c++) {
-                const cells = colCells[c];
-                const idx = colPos[c];
-                if (idx >= cells.length) continue;
-                const cell = cells[idx];
-                if (cell.top !== r) continue; // not starting here, covered by rowspan
-                const span = cell.bottom - cell.top + 1;
-                colPos[c] = idx + 1;
+                if (owned[r][c]) continue;
+                const cell = colGrid[c][r];
                 if (cell.skip) {
+                    const span = cell.bottom - cell.top + 1;
+                    for (let rr = cell.top; rr <= cell.bottom; rr++) owned[rr][c] = true;
                     html += `<td class="step skip" rowspan="${span}" title="This ingredient is not used in this step — the cell skips over it"></td>`;
                 } else if (cell.step) {
+                    const span = cell.bottom - cell.top + 1;
+                    for (let rr = cell.top; rr <= cell.bottom; rr++) owned[rr][c] = true;
                     const cls = cell.isFirstUsedRun ? 'step' : 'step continuation';
                     html += `<td class="${cls}" rowspan="${span}">`;
                     if (cell.isFirstUsedRun) {
@@ -712,7 +728,26 @@ cool2: cool1 -> cool on wire rack
                     }
                     html += `</td>`;
                 } else {
-                    html += `<td class="blank"></td>`;
+                    let w = 1;
+                    while (c + w <= recipe.colCount && !owned[r][c + w] && isBlankAt(r, c + w)) w++;
+                    let h = 1;
+                    growHeight:
+                    while (r + h < recipe.rowCount) {
+                        for (let cc = c; cc < c + w; cc++) {
+                            if (owned[r + h][cc] || !isBlankAt(r + h, cc)) break growHeight;
+                        }
+                        // Stop the band exactly where the blank run's width would
+                        // change (grow or shrink) at this row, instead of greedily
+                        // claiming full height for a width fixed at the top row —
+                        // that would lock out a wider merge lower down (e.g. when a
+                        // neighboring column also becomes blank a few rows later).
+                        if (c + w <= recipe.colCount && !owned[r + h][c + w] && isBlankAt(r + h, c + w)) break;
+                        h++;
+                    }
+                    for (let rr = r; rr < r + h; rr++)
+                        for (let cc = c; cc < c + w; cc++) owned[rr][cc] = true;
+                    const colspanAttr = w > 1 ? ` colspan="${w}"` : '';
+                    html += `<td class="blank" rowspan="${h}"${colspanAttr}></td>`;
                 }
             }
             html += '</tr>';
