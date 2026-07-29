@@ -1,322 +1,403 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Recipe Diagram Builder</title>
-<style>
-  :root{
-    --ink:#26211c;
-    --paper:#f2ece0;
-    --card:#fffaf0;
-    --line:rgba(38,33,28,.32);
-    --teal:#2f6f66;
-    --teal-light:#e6f1ef;
-    --amber-hue:32;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
-    background:#2b2b2b;
-    color:var(--ink);
-    display:flex;
-    height:100vh;
-  }
-  #editor-pane{
-    width:38%;
-    min-width:340px;
-    background:#1e1e1e;
-    display:flex;
-    flex-direction:column;
-    border-right:1px solid #000;
-  }
-  #editor-pane h1{
-    color:#eee;
-    font-size:14px;
-    margin:0;
-    padding:10px 14px;
-    background:#141414;
-    letter-spacing:.04em;
-    text-transform:uppercase;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-  }
-  #editor-pane h1 span{font-weight:400;color:#888;font-size:11px;}
-  #presets{
-    display:flex;
-    gap:6px;
-    padding:8px 12px;
-    background:#141414;
-  }
-  #presets button{
-    background:#333;
-    color:#eee;
-    border:1px solid #555;
-    border-radius:4px;
-    padding:5px 9px;
-    font-size:11px;
-    cursor:pointer;
-  }
-  #presets button:hover{background:#444;}
-  textarea{
-    flex:1;
-    background:#1e1e1e;
-    color:#d4d4d4;
-    border:none;
-    outline:none;
-    resize:none;
-    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    font-size:13px;
-    line-height:1.5;
-    padding:14px;
-  }
-  #error{
-    background:#3a1414;
-    color:#ff8a8a;
-    font-size:12px;
-    padding:8px 14px;
-    display:none;
-    white-space:pre-wrap;
-    font-family:ui-monospace,monospace;
-  }
-  #help{
-    font-size:11px;
-    color:#999;
-    padding:8px 14px;
-    border-top:1px solid #333;
-    line-height:1.5;
-    max-height:34%;
-    overflow:auto;
-  }
-  #help code{color:#c9e6a5;}
-  #credit{
-    font-size:10.5px;
-    color:#888;
-    padding:8px 14px;
-    border-top:1px solid #333;
-    line-height:1.4;
-  }
-  #credit a{color:#9db8e0;}
-  #view-pane{
-    flex:1;
-    overflow:auto;
-    padding:36px;
-    background:
-      radial-gradient(circle at 1px 1px, rgba(38,33,28,.06) 1px, transparent 0) 0 0/16px 16px,
-      var(--paper);
-  }
-  #exportRoot{
-    display:inline-block;
-    padding:26px 30px 30px;
-    background:var(--card);
-    border-radius:14px;
-    box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 14px 34px rgba(38,33,28,.18);
-  }
-  .recipe-title{
-    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;
-    font-size:23px;
-    font-weight:700;
-    color:var(--ink);
-    margin-bottom:4px;
-    letter-spacing:.01em;
-  }
-  .recipe-title::after{
-    content:"";
-    display:block;
-    width:56px;
-    height:3px;
-    margin:8px 0 16px;
-    background:var(--teal);
-    border-radius:3px;
-  }
-  .diagram-frame{
-    display:inline-block;
-    border:2px solid var(--ink);
-    border-radius:10px;
-    overflow:hidden;
-  }
-  table.diagram{
-    border-collapse:collapse;
-    background:var(--card);
-  }
-  table.diagram td{
-    border:1px solid var(--line);
-    padding:9px 13px;
-    font-size:13.5px;
-    line-height:1.4;
-  }
-  td.prereq{
-    background:var(--teal);
-    color:#f4faf8;
-    text-align:left;
-    font-weight:600;
-    letter-spacing:.05em;
-    text-transform:uppercase;
-    font-size:11.5px;
-    padding:9px 16px;
-    border-color:#1f544c;
-  }
-  td.prereq::before{content:"▸ ";}
-  td.ingredient{
-    background:var(--card);
-    min-width:230px;
-    border-left:4px solid var(--teal);
-    color:#3a332b;
-  }
-  td.ingredient b{
-    display:inline-block;
-    font-style:normal;
-    font-weight:700;
-    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    font-size:12px;
-    color:#1b4a42;
-    background:var(--teal-light);
-    border:1px solid #c3ddd7;
-    border-radius:5px;
-    padding:1px 7px;
-    margin-right:7px;
-  }
-  td.ingredient .note{color:#8a8074;font-size:12.5px;}
-  td.ingredient .opt{
-    display:inline-block;
-    margin-left:6px;
-    font-size:9.5px;
-    color:#a8895a;
-    border:1px solid #d8bd8f;
-    background:#fbf1de;
-    border-radius:3px;
-    padding:0 5px;
-    letter-spacing:.04em;
-    text-transform:uppercase;
-    vertical-align:middle;
-  }
-  td.step{
-    text-align:center;
-    vertical-align:middle;
-    min-width:112px;
-    color:#2c2116;
-    background:#fff;
-  }
-  td.step .label{
-    font-weight:700;
-    font-size:13.5px;
-    letter-spacing:.01em;
-  }
-  td.step .detail{
-    font-size:11px;
-    color:#5c4c37;
-    margin-top:5px;
-    padding-top:5px;
-    border-top:1px solid rgba(44,33,22,.18);
-    line-height:1.4;
-  }
-  td.blank{background:var(--card);}
-  td.step.skip{
-    background:repeating-linear-gradient(135deg, var(--card) 0 7px, #e4ddcb 7px 14px) !important;
-    border-style:dashed;
-    padding:0;
-    cursor:help;
-  }
-  td.step.continuation{}
-  td.step-end{position:relative;}
-  td.step-end::after{
-    content:"";
-    position:absolute;
-    left:-4000px;
-    right:0;
-    bottom:-1px;
-    height:1px;
-    background:var(--line);
-  }
-  #view-pane .empty{color:#8b8073;font-style:italic;}
-  #toolbar{
-    display:flex;
-    align-items:center;
-    flex-wrap:wrap;
-    gap:14px;
-    margin-bottom:16px;
-    font-size:12.5px;
-    color:#4a4136;
-  }
-  #toolbar label{display:flex;align-items:center;gap:5px;cursor:pointer;}
-  #exportBar{display:flex;gap:8px;}
-  #exportBar button{
-    display:flex;
-    align-items:center;
-    gap:5px;
-    background:var(--card);
-    color:var(--ink);
-    border:1px solid #cfc4b0;
-    border-radius:6px;
-    padding:6px 11px;
-    font-size:12px;
-    cursor:pointer;
-    box-shadow:0 1px 2px rgba(38,33,28,.08);
-  }
-  #exportBar button:hover{background:var(--teal-light);border-color:var(--teal);}
-  #viewCredit{
-    margin-left:auto;
-    font-size:11px;
-    color:#8b7f6f;
-  }
-  #viewCredit a{color:var(--teal);}
-  #gapWarning{
-    font-size:12px;
-    color:#7a5a1e;
-    background:#fbeecf;
-    border:1px solid #e3c98a;
-    border-radius:6px;
-    padding:6px 10px;
-    margin-bottom:10px;
-    max-width:640px;
-    display:none;
-  }
-</style>
+    <meta charset="utf-8">
+    <title>Recipe Diagram Builder</title>
+    <style>
+        :root {
+            --ink: #26211c;
+            --paper: #f2ece0;
+            --card: #fffaf0;
+            --line: rgba(38, 33, 28, .32);
+            --teal: #2f6f66;
+            --teal-light: #e6f1ef;
+            --amber-hue: 32;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background: #2b2b2b;
+            color: var(--ink);
+            display: flex;
+            height: 100vh;
+        }
+
+        #editor-pane {
+            width: 38%;
+            min-width: 340px;
+            background: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #000;
+        }
+
+        #editor-pane h1 {
+            color: #eee;
+            font-size: 14px;
+            margin: 0;
+            padding: 10px 14px;
+            background: #141414;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #editor-pane h1 span {
+            font-weight: 400;
+            color: #888;
+            font-size: 11px;
+        }
+
+        #presets {
+            display: flex;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #141414;
+        }
+
+        #presets button {
+            background: #333;
+            color: #eee;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 5px 9px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        #presets button:hover {
+            background: #444;
+        }
+
+        textarea {
+            flex: 1;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            outline: none;
+            resize: none;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            padding: 14px;
+        }
+
+        #error {
+            background: #3a1414;
+            color: #ff8a8a;
+            font-size: 12px;
+            padding: 8px 14px;
+            display: none;
+            white-space: pre-wrap;
+            font-family: ui-monospace, monospace;
+        }
+
+        #help {
+            font-size: 11px;
+            color: #999;
+            padding: 8px 14px;
+            border-top: 1px solid #333;
+            line-height: 1.5;
+            max-height: 34%;
+            overflow: auto;
+        }
+
+        #help code {
+            color: #c9e6a5;
+        }
+
+        #credit {
+            font-size: 10.5px;
+            color: #888;
+            padding: 8px 14px;
+            border-top: 1px solid #333;
+            line-height: 1.4;
+        }
+
+        #credit a {
+            color: #9db8e0;
+        }
+
+        #view-pane {
+            flex: 1;
+            overflow: auto;
+            padding: 36px;
+            background: radial-gradient(circle at 1px 1px, rgba(38, 33, 28, .06) 1px, transparent 0) 0 0/16px 16px,
+            var(--paper);
+        }
+
+        #exportRoot {
+            display: inline-block;
+            padding: 26px 30px 30px;
+            background: var(--card);
+            border-radius: 14px;
+            box-shadow: 0 1px 0 rgba(255, 255, 255, .6) inset, 0 14px 34px rgba(38, 33, 28, .18);
+        }
+
+        .recipe-title {
+            font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+            font-size: 23px;
+            font-weight: 700;
+            color: var(--ink);
+            margin-bottom: 4px;
+            letter-spacing: .01em;
+        }
+
+        .recipe-title::after {
+            content: "";
+            display: block;
+            width: 56px;
+            height: 3px;
+            margin: 8px 0 16px;
+            background: var(--teal);
+            border-radius: 3px;
+        }
+
+        .diagram-frame {
+            display: inline-block;
+            border: 2px solid var(--ink);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        table.diagram {
+            border-collapse: collapse;
+            background: var(--card);
+        }
+
+        table.diagram td {
+            border: 1px solid var(--line);
+            padding: 9px 13px;
+            font-size: 13.5px;
+            line-height: 1.4;
+        }
+
+        td.prereq {
+            background: var(--teal);
+            color: #f4faf8;
+            text-align: left;
+            font-weight: 600;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            font-size: 11.5px;
+            padding: 9px 16px;
+            border-color: #1f544c;
+        }
+
+        td.prereq::before {
+            content: "▸ ";
+        }
+
+        td.ingredient {
+            background: var(--card);
+            min-width: 230px;
+            border-left: 4px solid var(--teal);
+            color: #3a332b;
+        }
+
+        td.ingredient b {
+            display: inline-block;
+            font-style: normal;
+            font-weight: 700;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12px;
+            color: #1b4a42;
+            background: var(--teal-light);
+            border: 1px solid #c3ddd7;
+            border-radius: 5px;
+            padding: 1px 7px;
+            margin-right: 7px;
+        }
+
+        td.ingredient .note {
+            color: #8a8074;
+            font-size: 12.5px;
+        }
+
+        td.ingredient .opt {
+            display: inline-block;
+            margin-left: 6px;
+            font-size: 9.5px;
+            color: #a8895a;
+            border: 1px solid #d8bd8f;
+            background: #fbf1de;
+            border-radius: 3px;
+            padding: 0 5px;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            vertical-align: middle;
+        }
+
+        td.step {
+            text-align: center;
+            vertical-align: middle;
+            min-width: 112px;
+            color: #2c2116;
+            background: #fff;
+        }
+
+        td.step .label {
+            font-weight: 700;
+            font-size: 13.5px;
+            letter-spacing: .01em;
+        }
+
+        td.step .detail {
+            font-size: 11px;
+            color: #5c4c37;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid rgba(44, 33, 22, .18);
+            line-height: 1.4;
+        }
+
+        td.blank {
+            background: var(--card);
+            border-left: none !important;
+            border-right: none !important;
+        }
+
+        td.step.skip {
+            background: repeating-linear-gradient(135deg, var(--card) 0 7px, #e4ddcb 7px 14px) !important;
+            border-style: dashed;
+            padding: 0;
+            cursor: help;
+        }
+
+        td.step.continuation {
+        }
+
+        #view-pane .empty {
+            color: #8b8073;
+            font-style: italic;
+        }
+
+        #toolbar {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-bottom: 16px;
+            font-size: 12.5px;
+            color: #4a4136;
+        }
+
+        #toolbar label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+
+        #exportBar {
+            display: flex;
+            gap: 8px;
+        }
+
+        #exportBar button {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--card);
+            color: var(--ink);
+            border: 1px solid #cfc4b0;
+            border-radius: 6px;
+            padding: 6px 11px;
+            font-size: 12px;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(38, 33, 28, .08);
+        }
+
+        #exportBar button:hover {
+            background: var(--teal-light);
+            border-color: var(--teal);
+        }
+
+        #viewCredit {
+            margin-left: auto;
+            font-size: 11px;
+            color: #8b7f6f;
+        }
+
+        #viewCredit a {
+            color: var(--teal);
+        }
+
+        #gapWarning {
+            font-size: 12px;
+            color: #7a5a1e;
+            background: #fbeecf;
+            border: 1px solid #e3c98a;
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin-bottom: 10px;
+            max-width: 640px;
+            display: none;
+        }
+    </style>
 </head>
 <body>
-  <div id="editor-pane">
+<div id="editor-pane">
     <h1>Recipe Diagram Syntax <span>edit and watch the preview →</span></h1>
     <div id="presets">
-      <button data-preset="chana">Chana Masala</button>
-      <button data-preset="banana">Banana Nut Bread</button>
-      <button data-preset="empty">Clear</button>
+        <button data-preset="chana">Chana Masala</button>
+        <button data-preset="banana">Banana Nut Bread</button>
+        <button data-preset="empty">Clear</button>
     </div>
     <textarea id="src" spellcheck="false"></textarea>
     <div id="error"></div>
     <div id="help">
-<b>Syntax:</b><br>
-<code>title: Name (servings)</code><br>
-<code>prereq: prep step text</code> (multiple lines = multiple rows above the table)<br>
-<code>ingredients:</code> ingredients section, each line: <code>id = *amount* description | note</code><br>
-&nbsp;&nbsp;<code>*asterisks*</code> bold a fragment (e.g. the amount), <code>| note</code> is a gray annotation, append <code>#optional</code> at the end to mark it optional.<br>
-<code>steps:</code> steps section, each line:<br>
-<code>id: input1, input2 -> Step label | details (time, notes)</code><br>
-&nbsp;&nbsp;an input can be an ingredient id or an earlier step's id. The step's column and cell height (row span) are computed automatically from the union of its inputs' spans.<br><br>
-<b>Auto-arrange:</b> if a step only uses A and C (with B in between), the app automatically moves ingredients so A and C become adjacent — without touching your source text, only the rendering. If two steps have genuinely conflicting order requirements, the remaining "gap" is shown as a hatched cell (instead of looking like the step uses that ingredient).
+        <b>Syntax:</b><br>
+        <code>title: Name (servings)</code><br>
+        <code>prereq: prep step text</code> (multiple lines = multiple rows above the table)<br>
+        <code>ingredients:</code> ingredients section, each line: <code>id = *amount* description | note</code><br>
+        &nbsp;&nbsp;<code>*asterisks*</code> bold a fragment (e.g. the amount), <code>| note</code> is a gray
+        annotation, append <code>#optional</code> at the end to mark it optional.<br>
+        <code>steps:</code> steps section, each line:<br>
+        <code>id: input1, input2 -> Step label | details (time, notes)</code><br>
+        &nbsp;&nbsp;an input can be an ingredient id or an earlier step's id. The step's column and cell height (row
+        span) are computed automatically from the union of its inputs' spans.<br><br>
+        <b>Auto-arrange:</b> if a step only uses A and C (with B in between), the app automatically moves ingredients so
+        A and C become adjacent — without touching your source text, only the rendering. If two steps have genuinely
+        conflicting order requirements, the remaining "gap" is shown as a hatched cell (instead of looking like the step
+        uses that ingredient).
     </div>
     <div id="credit">
-      Inspired by the recipe diagrams at <a href="https://www.cookingforengineers.com/" target="_blank" rel="noopener">CookingForEngineers.com</a> — not affiliated with or endorsed by that site.
+        Inspired by the recipe diagrams at <a href="https://www.cookingforengineers.com/" target="_blank"
+                                              rel="noopener">CookingForEngineers.com</a> — not affiliated with or
+        endorsed by that site.
     </div>
-  </div>
-  <div id="view-pane">
+</div>
+<div id="view-pane">
     <div id="toolbar">
-      <label><input type="checkbox" id="autoArrange" checked> Auto-arrange ingredients (eliminate gaps in steps)</label>
-      <div id="exportBar">
-        <button id="btnExportHtml" title="Download the diagram as a standalone HTML file">&lt;/&gt; Export HTML</button>
-        <button id="btnExportJpg" title="Download the diagram as a JPG image">🖼 Export JPG</button>
-        <button id="btnPrint" title="Open the diagram in a print dialog (Save as PDF)">🖨 Print / PDF</button>
-      </div>
-      <span id="viewCredit">Diagram style inspired by <a href="https://www.cookingforengineers.com/" target="_blank" rel="noopener">CookingForEngineers.com</a></span>
+        <label><input type="checkbox" id="autoArrange" checked> Auto-arrange ingredients (eliminate gaps in
+            steps)</label>
+        <div id="exportBar">
+            <button id="btnExportHtml" title="Download the diagram as a standalone HTML file">&lt;/&gt; Export HTML
+            </button>
+            <button id="btnExportJpg" title="Download the diagram as a JPG image">🖼 Export JPG</button>
+            <button id="btnPrint" title="Open the diagram in a print dialog (Save as PDF)">🖨 Print / PDF</button>
+        </div>
+        <span id="viewCredit">Diagram style inspired by <a href="https://www.cookingforengineers.com/" target="_blank"
+                                                           rel="noopener">CookingForEngineers.com</a></span>
     </div>
     <div id="gapWarning"></div>
-    <div id="exportRoot"><div id="output"></div></div>
-  </div>
+    <div id="exportRoot">
+        <div id="output"></div>
+    </div>
+</div>
 
 <script>
-const PRESETS = {
-empty: ``,
-chana: `title: Chana Masala Curry
+    const PRESETS = {
+        empty: ``,
+        chana: `title: Chana Masala Curry
 
 prereq: Set a large Dutch oven over medium-high heat
 
@@ -344,7 +425,7 @@ simmer: fry, coconut, stock, salt, pepper -> scrape, lid on, simmer | 25-30 min 
 wilt: simmer, kale -> wilt | 5 min
 ladle: wilt, mint, serve -> ladle | garnish · serve
 `,
-banana: `title: Banana Nut Bread (about 10 servings)
+        banana: `title: Banana Nut Bread (about 10 servings)
 
 prereq: Butter and flour a loaf pan
 prereq: Preheat oven to 350°F (170°C)
@@ -372,295 +453,328 @@ bake: fold -> bake 350°F (170°C) 55 min.
 cool1: bake -> cool 10 min. in pan
 cool2: cool1 -> cool on wire rack
 `
-};
+    };
 
-function parseRecipe(text){
-  const lines = text.split(/\r?\n/);
-  let section = null;
-  const recipe = { title:'', prereqs:[], ingredients:[], ingredientIndex:{}, steps:[], stepIndex:{} };
+    function parseRecipe(text) {
+        const lines = text.split(/\r?\n/);
+        let section = null;
+        const recipe = {title: '', prereqs: [], ingredients: [], ingredientIndex: {}, steps: [], stepIndex: {}};
 
-  const stripInline = (s) => s.trim();
+        const stripInline = (s) => s.trim();
 
-  lines.forEach((raw, lineNo) => {
-    const line = raw.trim();
-    if(!line || line.startsWith('#')) return;
+        lines.forEach((raw, lineNo) => {
+            const line = raw.trim();
+            if (!line || line.startsWith('#')) return;
 
-    if(/^title\s*:/i.test(line)){
-      recipe.title = line.replace(/^title\s*:/i,'').trim();
-      return;
+            if (/^title\s*:/i.test(line)) {
+                recipe.title = line.replace(/^title\s*:/i, '').trim();
+                return;
+            }
+            if (/^prereq\s*:/i.test(line)) {
+                recipe.prereqs.push(line.replace(/^prereq\s*:/i, '').trim());
+                return;
+            }
+            if (/^ingredients\s*:\s*$/i.test(line)) {
+                section = 'ingredients';
+                return;
+            }
+            if (/^steps\s*:\s*$/i.test(line)) {
+                section = 'steps';
+                return;
+            }
+
+            if (section === 'ingredients') {
+                const m = line.match(/^([A-Za-z0-9_]+)\s*=\s*(.+)$/);
+                if (!m) throw new Error(`Line ${lineNo + 1}: invalid ingredient format:\n"${raw}"\nExpected: id = description`);
+                const id = m[1];
+                let rest = m[2];
+                let optional = false;
+                if (/#optional\b/i.test(rest)) {
+                    optional = true;
+                    rest = rest.replace(/#optional\b/i, '').trim();
+                }
+                let note = '';
+                const parts = rest.split('|');
+                const main = parts[0].trim();
+                if (parts.length > 1) note = parts.slice(1).join('|').trim();
+                if (recipe.ingredientIndex[id] !== undefined) throw new Error(`Line ${lineNo + 1}: duplicate ingredient id "${id}"`);
+                recipe.ingredientIndex[id] = recipe.ingredients.length;
+                recipe.ingredients.push({id, main, note, optional});
+                return;
+            }
+
+            if (section === 'steps') {
+                const m = line.match(/^([A-Za-z0-9_]+)\s*:\s*([^->]+)->\s*(.+)$/);
+                if (!m) throw new Error(`Line ${lineNo + 1}: invalid step format:\n"${raw}"\nExpected: id: inputs -> Label | details`);
+                const id = m[1];
+                const inputs = m[2].split(',').map(s => s.trim()).filter(Boolean);
+                let rest = m[3];
+                let detail = '';
+                const parts = rest.split('|');
+                const label = parts[0].trim();
+                if (parts.length > 1) detail = parts.slice(1).join('|').trim();
+                if (recipe.stepIndex[id] !== undefined) throw new Error(`Line ${lineNo + 1}: duplicate step id "${id}"`);
+                if (inputs.length === 0) throw new Error(`Line ${lineNo + 1}: step "${id}" has no inputs`);
+                inputs.forEach(inp => {
+                    if (recipe.ingredientIndex[inp] === undefined && recipe.stepIndex[inp] === undefined) {
+                        throw new Error(`Line ${lineNo + 1}: step "${id}" refers to unknown id "${inp}"`);
+                    }
+                });
+                recipe.stepIndex[id] = recipe.steps.length;
+                recipe.steps.push({id, inputs, label, detail});
+                return;
+            }
+
+            throw new Error(`Line ${lineNo + 1}: unexpected content outside the ingredients:/steps: sections:\n"${raw}"`);
+        });
+
+        if (recipe.ingredients.length === 0) throw new Error('Brak sekcji "ingredients:" lub jest pusta.');
+        return recipe;
     }
-    if(/^prereq\s*:/i.test(line)){
-      recipe.prereqs.push(line.replace(/^prereq\s*:/i,'').trim());
-      return;
-    }
-    if(/^ingredients\s*:\s*$/i.test(line)){ section='ingredients'; return; }
-    if(/^steps\s*:\s*$/i.test(line)){ section='steps'; return; }
 
-    if(section === 'ingredients'){
-      const m = line.match(/^([A-Za-z0-9_]+)\s*=\s*(.+)$/);
-      if(!m) throw new Error(`Line ${lineNo+1}: invalid ingredient format:\n"${raw}"\nExpected: id = description`);
-      const id = m[1];
-      let rest = m[2];
-      let optional = false;
-      if(/#optional\b/i.test(rest)){ optional = true; rest = rest.replace(/#optional\b/i,'').trim(); }
-      let note = '';
-      const parts = rest.split('|');
-      const main = parts[0].trim();
-      if(parts.length > 1) note = parts.slice(1).join('|').trim();
-      if(recipe.ingredientIndex[id] !== undefined) throw new Error(`Line ${lineNo+1}: duplicate ingredient id "${id}"`);
-      recipe.ingredientIndex[id] = recipe.ingredients.length;
-      recipe.ingredients.push({ id, main, note, optional });
-      return;
+    // Transitive set of ingredient ids actually consumed by a step (walking through
+    // step-to-step chains). Memoized per recipe since steps only reference earlier ids.
+    function transitiveIngredientIds(step, recipe, memo) {
+        if (memo.has(step.id)) return memo.get(step.id);
+        const set = new Set();
+        step.inputs.forEach(inp => {
+            if (recipe.ingredientIndex[inp] !== undefined) {
+                set.add(inp);
+            } else {
+                const sub = recipe.steps[recipe.stepIndex[inp]];
+                transitiveIngredientIds(sub, recipe, memo).forEach(x => set.add(x));
+            }
+        });
+        memo.set(step.id, set);
+        return set;
     }
 
-    if(section === 'steps'){
-      const m = line.match(/^([A-Za-z0-9_]+)\s*:\s*([^->]+)->\s*(.+)$/);
-      if(!m) throw new Error(`Line ${lineNo+1}: invalid step format:\n"${raw}"\nExpected: id: inputs -> Label | details`);
-      const id = m[1];
-      const inputs = m[2].split(',').map(s=>s.trim()).filter(Boolean);
-      let rest = m[3];
-      let detail = '';
-      const parts = rest.split('|');
-      const label = parts[0].trim();
-      if(parts.length > 1) detail = parts.slice(1).join('|').trim();
-      if(recipe.stepIndex[id] !== undefined) throw new Error(`Line ${lineNo+1}: duplicate step id "${id}"`);
-      if(inputs.length === 0) throw new Error(`Line ${lineNo+1}: step "${id}" has no inputs`);
-      inputs.forEach(inp => {
-        if(recipe.ingredientIndex[inp] === undefined && recipe.stepIndex[inp] === undefined){
-          throw new Error(`Line ${lineNo+1}: step "${id}" refers to unknown id "${inp}"`);
+    // Reorders recipe.ingredients so that ingredients consumed together by the same
+    // step become adjacent, avoiding "false" gaps where a step's cell visually spans
+    // an ingredient it never actually uses. Non-destructive to the source text —
+    // this only changes rendering order. Uses a stable "pull together" heuristic:
+    // process steps in the order they're written, and for each step drag its
+    // (transitively) used ingredients into one contiguous block, preserving their
+    // existing relative order and the relative order of everything else.
+    function autoArrange(recipe) {
+        const memo = new Map();
+        let order = recipe.ingredients.map(i => i.id);
+
+        recipe.steps.forEach(step => {
+            const used = transitiveIngredientIds(step, recipe, memo);
+            if (used.size <= 1) return;
+            const usedIdsInOrder = order.filter(id => used.has(id));
+            const remaining = order.filter(id => !used.has(id));
+            const minIdx = Math.min(...[...used].map(id => order.indexOf(id)));
+            let insertPos = 0;
+            for (let i = 0; i < minIdx; i++) {
+                if (!used.has(order[i])) insertPos++;
+            }
+            order = [...remaining.slice(0, insertPos), ...usedIdsInOrder, ...remaining.slice(insertPos)];
+        });
+
+        const byId = {};
+        recipe.ingredients.forEach(ing => byId[ing.id] = ing);
+        recipe.ingredients = order.map(id => byId[id]);
+        recipe.ingredientIndex = {};
+        recipe.ingredients.forEach((ing, i) => recipe.ingredientIndex[ing.id] = i);
+        return recipe;
+    }
+
+    // Computes row-span [top,bottom], column, and the actual used-ingredient set
+    // (for gap detection) for every step, given the current recipe.ingredients order.
+    function computeLayout(recipe) {
+        const memo = new Map();
+        const rowOf = {};
+        recipe.ingredients.forEach((ing, i) => rowOf[ing.id] = [i, i]);
+        const colOf = {};
+
+        recipe.steps.forEach(step => {
+            let top = Infinity, bottom = -Infinity, col = 1;
+            step.inputs.forEach(inp => {
+                const r = rowOf[inp];
+                if (!r) throw new Error(`Step "${step.id}": no row range found for input "${inp}" (define it earlier).`);
+                top = Math.min(top, r[0]);
+                bottom = Math.max(bottom, r[1]);
+                if (colOf[inp] !== undefined) col = Math.max(col, colOf[inp] + 1);
+            });
+            rowOf[step.id] = [top, bottom];
+            colOf[step.id] = col;
+            step.top = top;
+            step.bottom = bottom;
+            step.col = col;
+            step.usedSet = transitiveIngredientIds(step, recipe, memo);
+            step.hasGap = (bottom - top + 1) > step.usedSet.size;
+        });
+
+        recipe.rowCount = recipe.ingredients.length;
+        recipe.colCount = recipe.steps.length ? Math.max(...recipe.steps.map(s => s.col)) : 0;
+        recipe.gapSteps = recipe.steps.filter(s => s.hasGap).map(s => s.id);
+        return recipe;
+    }
+
+    function inlineMarkdown(str) {
+        const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return esc(str).replace(/\*(.+?)\*/g, '<b>$1</b>');
+    }
+
+    // Pushes one {top,bottom,step:null,skip:false} entry per row in [top,bottom]
+    // instead of a single merged multi-row entry. Rendered as individual per-row
+    // <td class="blank"> cells (see render()), so each one naturally gets its own
+    // border-top from the base `table.diagram td` rule — giving every step's true
+    // bottom edge a horizontal line that already reaches the ingredient column,
+    // with no extra JS-computed overlay needed.
+    function pushBlankRows(cells, top, bottom) {
+        for (let r = top; r <= bottom; r++) cells.push({top: r, bottom: r, step: null, skip: false});
+    }
+
+    function render(recipe) {
+        const totalCols = 1 + recipe.colCount;
+        let html = '';
+        if (recipe.title) {
+            html += `<div class="recipe-title">${inlineMarkdown(recipe.title)}</div>`;
         }
-      });
-      recipe.stepIndex[id] = recipe.steps.length;
-      recipe.steps.push({ id, inputs, label, detail });
-      return;
+        html += `<div class="diagram-frame"><table class="diagram">`;
+
+        recipe.prereqs.forEach(p => {
+            html += `<tr><td class="prereq" colspan="${totalCols}">${inlineMarkdown(p)}</td></tr>`;
+        });
+
+        // group steps by column, sorted by top row
+        const byCol = {};
+        for (let c = 1; c <= recipe.colCount; c++) {
+            byCol[c] = recipe.steps.filter(s => s.col === c).sort((a, b) => a.top - b.top);
+        }
+
+        // build per-column list of cells (blank + step-used-run + step-skip-run) covering rows 0..rowCount-1
+        const colCells = {}; // c -> array of {top,bottom,step|null,skip}
+        for (let c = 1; c <= recipe.colCount; c++) {
+            const cells = [];
+            let cursor = 0;
+            byCol[c].forEach(s => {
+                if (s.top > cursor) pushBlankRows(cells, cursor, s.top - 1);
+                // split the step's [top,bottom] range into contiguous used/unused runs
+                let runStart = s.top, runUsed = null, firstUsedRun = true;
+                for (let r = s.top; r <= s.bottom + 1; r++) {
+                    const isUsed = r <= s.bottom ? s.usedSet.has(recipe.ingredients[r].id) : null;
+                    if (runUsed === null) {
+                        runUsed = isUsed;
+                        runStart = r;
+                        continue;
+                    }
+                    if (isUsed !== runUsed) {
+                        cells.push({
+                            top: runStart,
+                            bottom: r - 1,
+                            step: runUsed ? s : null,
+                            skip: !runUsed,
+                            isFirstUsedRun: runUsed && firstUsedRun
+                        });
+                        if (runUsed) firstUsedRun = false;
+                        runStart = r;
+                        runUsed = isUsed;
+                    }
+                }
+                cursor = s.bottom + 1;
+            });
+            if (cursor <= recipe.rowCount - 1) pushBlankRows(cells, cursor, recipe.rowCount - 1);
+            colCells[c] = cells;
+        }
+
+        // render row by row using a "who owns this row" pointer per column (rowspan skips)
+        const colPos = {}; // c -> index into colCells[c]
+        for (let c = 1; c <= recipe.colCount; c++) colPos[c] = 0;
+
+        for (let r = 0; r < recipe.rowCount; r++) {
+            html += '<tr>';
+            const ing = recipe.ingredients[r];
+            html += `<td class="ingredient">${inlineMarkdown(ing.main)}`;
+            if (ing.optional) html += `<span class="opt">optional</span>`;
+            if (ing.note) html += `<div class="note">${inlineMarkdown(ing.note)}</div>`;
+            html += `</td>`;
+
+            for (let c = 1; c <= recipe.colCount; c++) {
+                const cells = colCells[c];
+                const idx = colPos[c];
+                if (idx >= cells.length) continue;
+                const cell = cells[idx];
+                if (cell.top !== r) continue; // not starting here, covered by rowspan
+                const span = cell.bottom - cell.top + 1;
+                colPos[c] = idx + 1;
+                if (cell.skip) {
+                    html += `<td class="step skip" rowspan="${span}" title="This ingredient is not used in this step — the cell skips over it"></td>`;
+                } else if (cell.step) {
+                    const cls = cell.isFirstUsedRun ? 'step' : 'step continuation';
+                    html += `<td class="${cls}" rowspan="${span}">`;
+                    if (cell.isFirstUsedRun) {
+                        html += `<div class="label">${inlineMarkdown(cell.step.label)}</div>`;
+                        if (cell.step.detail) html += `<div class="detail">${inlineMarkdown(cell.step.detail)}</div>`;
+                    }
+                    html += `</td>`;
+                } else {
+                    html += `<td class="blank"></td>`;
+                }
+            }
+            html += '</tr>';
+        }
+
+        html += `</table></div>`;
+        return html;
     }
 
-    throw new Error(`Line ${lineNo+1}: unexpected content outside the ingredients:/steps: sections:\n"${raw}"`);
-  });
+    const srcEl = document.getElementById('src');
+    const outEl = document.getElementById('output');
+    const errEl = document.getElementById('error');
+    const gapWarnEl = document.getElementById('gapWarning');
+    const autoArrangeEl = document.getElementById('autoArrange');
+    const exportRootEl = document.getElementById('exportRoot');
+    let currentTitle = 'recipe-diagram';
 
-  if(recipe.ingredients.length === 0) throw new Error('Brak sekcji "ingredients:" lub jest pusta.');
-  return recipe;
-}
-
-// Transitive set of ingredient ids actually consumed by a step (walking through
-// step-to-step chains). Memoized per recipe since steps only reference earlier ids.
-function transitiveIngredientIds(step, recipe, memo){
-  if(memo.has(step.id)) return memo.get(step.id);
-  const set = new Set();
-  step.inputs.forEach(inp => {
-    if(recipe.ingredientIndex[inp] !== undefined){
-      set.add(inp);
-    } else {
-      const sub = recipe.steps[recipe.stepIndex[inp]];
-      transitiveIngredientIds(sub, recipe, memo).forEach(x => set.add(x));
+    function update() {
+        const text = srcEl.value;
+        try {
+            if (!text.trim()) {
+                outEl.innerHTML = '<p class="empty">Type a recipe on the left, or pick an example.</p>';
+                errEl.style.display = 'none';
+                gapWarnEl.style.display = 'none';
+                return;
+            }
+            let recipe = parseRecipe(text);
+            if (autoArrangeEl.checked) recipe = autoArrange(recipe);
+            computeLayout(recipe);
+            outEl.innerHTML = render(recipe);
+            errEl.style.display = 'none';
+            currentTitle = recipe.title || 'recipe-diagram';
+            if (recipe.gapSteps.length) {
+                gapWarnEl.textContent = `⚠ Steps with gaps despite arranging: ${recipe.gapSteps.join(', ')} — conflicting ingredient order requirements (shown as hatched "skip" cells).`;
+                gapWarnEl.style.display = 'block';
+            } else {
+                gapWarnEl.style.display = 'none';
+            }
+        } catch (e) {
+            errEl.textContent = 'Error: ' + e.message;
+            errEl.style.display = 'block';
+        }
     }
-  });
-  memo.set(step.id, set);
-  return set;
-}
 
-// Reorders recipe.ingredients so that ingredients consumed together by the same
-// step become adjacent, avoiding "false" gaps where a step's cell visually spans
-// an ingredient it never actually uses. Non-destructive to the source text —
-// this only changes rendering order. Uses a stable "pull together" heuristic:
-// process steps in the order they're written, and for each step drag its
-// (transitively) used ingredients into one contiguous block, preserving their
-// existing relative order and the relative order of everything else.
-function autoArrange(recipe){
-  const memo = new Map();
-  let order = recipe.ingredients.map(i => i.id);
-
-  recipe.steps.forEach(step => {
-    const used = transitiveIngredientIds(step, recipe, memo);
-    if(used.size <= 1) return;
-    const usedIdsInOrder = order.filter(id => used.has(id));
-    const remaining = order.filter(id => !used.has(id));
-    const minIdx = Math.min(...[...used].map(id => order.indexOf(id)));
-    let insertPos = 0;
-    for(let i=0;i<minIdx;i++){ if(!used.has(order[i])) insertPos++; }
-    order = [...remaining.slice(0,insertPos), ...usedIdsInOrder, ...remaining.slice(insertPos)];
-  });
-
-  const byId = {};
-  recipe.ingredients.forEach(ing => byId[ing.id] = ing);
-  recipe.ingredients = order.map(id => byId[id]);
-  recipe.ingredientIndex = {};
-  recipe.ingredients.forEach((ing,i) => recipe.ingredientIndex[ing.id] = i);
-  return recipe;
-}
-
-// Computes row-span [top,bottom], column, and the actual used-ingredient set
-// (for gap detection) for every step, given the current recipe.ingredients order.
-function computeLayout(recipe){
-  const memo = new Map();
-  const rowOf = {};
-  recipe.ingredients.forEach((ing,i) => rowOf[ing.id] = [i,i]);
-  const colOf = {};
-
-  recipe.steps.forEach(step => {
-    let top = Infinity, bottom = -Infinity, col = 1;
-    step.inputs.forEach(inp => {
-      const r = rowOf[inp];
-      if(!r) throw new Error(`Step "${step.id}": no row range found for input "${inp}" (define it earlier).`);
-      top = Math.min(top, r[0]);
-      bottom = Math.max(bottom, r[1]);
-      if(colOf[inp] !== undefined) col = Math.max(col, colOf[inp] + 1);
+    srcEl.addEventListener('input', update);
+    autoArrangeEl.addEventListener('change', update);
+    document.getElementById('presets').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-preset]');
+        if (!btn) return;
+        srcEl.value = PRESETS[btn.dataset.preset];
+        update();
     });
-    rowOf[step.id] = [top, bottom];
-    colOf[step.id] = col;
-    step.top = top; step.bottom = bottom; step.col = col;
-    step.usedSet = transitiveIngredientIds(step, recipe, memo);
-    step.hasGap = (bottom - top + 1) > step.usedSet.size;
-  });
 
-  recipe.rowCount = recipe.ingredients.length;
-  recipe.colCount = recipe.steps.length ? Math.max(...recipe.steps.map(s=>s.col)) : 0;
-  recipe.gapSteps = recipe.steps.filter(s => s.hasGap).map(s => s.id);
-  return recipe;
-}
+    srcEl.value = PRESETS.chana;
+    update();
 
-function inlineMarkdown(str){
-  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  return esc(str).replace(/\*(.+?)\*/g, '<b>$1</b>');
-}
+    // ---------- Export ----------
 
-function render(recipe){
-  const totalCols = 1 + recipe.colCount;
-  let html = '';
-  if(recipe.title){
-    html += `<div class="recipe-title">${inlineMarkdown(recipe.title)}</div>`;
-  }
-  html += `<div class="diagram-frame"><table class="diagram">`;
-
-  recipe.prereqs.forEach(p => {
-    html += `<tr><td class="prereq" colspan="${totalCols}">${inlineMarkdown(p)}</td></tr>`;
-  });
-
-  // group steps by column, sorted by top row
-  const byCol = {};
-  for(let c=1; c<=recipe.colCount; c++){
-    byCol[c] = recipe.steps.filter(s=>s.col===c).sort((a,b)=>a.top-b.top);
-  }
-
-  // build per-column list of cells (blank + step-used-run + step-skip-run) covering rows 0..rowCount-1
-  const colCells = {}; // c -> array of {top,bottom,step|null,skip}
-  for(let c=1; c<=recipe.colCount; c++){
-    const cells = [];
-    let cursor = 0;
-    byCol[c].forEach(s => {
-      if(s.top > cursor) cells.push({top:cursor, bottom:s.top-1, step:null, skip:false});
-      // split the step's [top,bottom] range into contiguous used/unused runs
-      let runStart = s.top, runUsed = null, firstUsedRun = true;
-      for(let r=s.top; r<=s.bottom+1; r++){
-        const isUsed = r<=s.bottom ? s.usedSet.has(recipe.ingredients[r].id) : null;
-        if(runUsed === null){ runUsed = isUsed; runStart = r; continue; }
-        if(isUsed !== runUsed){
-          cells.push({top:runStart, bottom:r-1, step: runUsed ? s : null, skip: !runUsed, isFirstUsedRun: runUsed && firstUsedRun});
-          if(runUsed) firstUsedRun = false;
-          runStart = r; runUsed = isUsed;
-        }
-      }
-      cursor = s.bottom + 1;
-    });
-    if(cursor <= recipe.rowCount-1) cells.push({top:cursor, bottom:recipe.rowCount-1, step:null, skip:false});
-    colCells[c] = cells;
-  }
-
-  // render row by row using a "who owns this row" pointer per column (rowspan skips)
-  const colPos = {}; // c -> index into colCells[c]
-  for(let c=1;c<=recipe.colCount;c++) colPos[c]=0;
-
-  for(let r=0; r<recipe.rowCount; r++){
-    html += '<tr>';
-    const ing = recipe.ingredients[r];
-    html += `<td class="ingredient">${inlineMarkdown(ing.main)}`;
-    if(ing.optional) html += `<span class="opt">optional</span>`;
-    if(ing.note) html += `<div class="note">${inlineMarkdown(ing.note)}</div>`;
-    html += `</td>`;
-
-    for(let c=1;c<=recipe.colCount;c++){
-      const cells = colCells[c];
-      const idx = colPos[c];
-      if(idx >= cells.length) continue;
-      const cell = cells[idx];
-      if(cell.top !== r) continue; // not starting here, covered by rowspan
-      const span = cell.bottom - cell.top + 1;
-      colPos[c] = idx + 1;
-      if(cell.skip){
-        html += `<td class="step skip" rowspan="${span}" title="This ingredient is not used in this step — the cell skips over it"></td>`;
-      } else if(cell.step){
-        let cls = cell.isFirstUsedRun ? 'step' : 'step continuation';
-        if(cell.bottom === cell.step.bottom) cls += ' step-end'; // true end of the step: extend its bottom edge leftward
-        html += `<td class="${cls}" rowspan="${span}">`;
-        if(cell.isFirstUsedRun){
-          html += `<div class="label">${inlineMarkdown(cell.step.label)}</div>`;
-          if(cell.step.detail) html += `<div class="detail">${inlineMarkdown(cell.step.detail)}</div>`;
-        }
-        html += `</td>`;
-      } else {
-        html += `<td class="blank" rowspan="${span}"></td>`;
-      }
-    }
-    html += '</tr>';
-  }
-
-  html += `</table></div>`;
-  return html;
-}
-
-const srcEl = document.getElementById('src');
-const outEl = document.getElementById('output');
-const errEl = document.getElementById('error');
-const gapWarnEl = document.getElementById('gapWarning');
-const autoArrangeEl = document.getElementById('autoArrange');
-const exportRootEl = document.getElementById('exportRoot');
-let currentTitle = 'recipe-diagram';
-
-function update(){
-  const text = srcEl.value;
-  try{
-    if(!text.trim()){
-      outEl.innerHTML = '<p class="empty">Type a recipe on the left, or pick an example.</p>';
-      errEl.style.display = 'none';
-      gapWarnEl.style.display = 'none';
-      return;
-    }
-    let recipe = parseRecipe(text);
-    if(autoArrangeEl.checked) recipe = autoArrange(recipe);
-    computeLayout(recipe);
-    outEl.innerHTML = render(recipe);
-    errEl.style.display = 'none';
-    currentTitle = recipe.title || 'recipe-diagram';
-    if(recipe.gapSteps.length){
-      gapWarnEl.textContent = `⚠ Steps with gaps despite arranging: ${recipe.gapSteps.join(', ')} — conflicting ingredient order requirements (shown as hatched "skip" cells).`;
-      gapWarnEl.style.display = 'block';
-    } else {
-      gapWarnEl.style.display = 'none';
-    }
-  } catch(e){
-    errEl.textContent = 'Error: ' + e.message;
-    errEl.style.display = 'block';
-  }
-}
-
-srcEl.addEventListener('input', update);
-autoArrangeEl.addEventListener('change', update);
-document.getElementById('presets').addEventListener('click', (e)=>{
-  const btn = e.target.closest('button[data-preset]');
-  if(!btn) return;
-  srcEl.value = PRESETS[btn.dataset.preset];
-  update();
-});
-
-srcEl.value = PRESETS.chana;
-update();
-
-// ---------- Export ----------
-
-// Minimal self-contained stylesheet reused by the standalone HTML export,
-// the print window and the JPG rasterizer, so all three exports look
-// identical to the on-screen diagram without depending on the app's own UI CSS.
-const EXPORT_CSS = `
+    // Minimal self-contained stylesheet reused by the standalone HTML export,
+    // the print window and the JPG rasterizer, so all three exports look
+    // identical to the on-screen diagram without depending on the app's own UI CSS.
+    const EXPORT_CSS = `
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:#fffaf0;}
   .recipe-title{font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif;font-size:23px;font-weight:700;color:#26211c;margin-bottom:4px;letter-spacing:.01em;}
   .recipe-title::after{content:"";display:block;width:56px;height:3px;margin:8px 0 16px;background:#2f6f66;border-radius:3px;}
@@ -676,24 +790,22 @@ const EXPORT_CSS = `
   td.step{text-align:center;vertical-align:middle;min-width:112px;color:#2c2116;background:#fff;}
   td.step .label{font-weight:700;font-size:13.5px;letter-spacing:.01em;}
   td.step .detail{font-size:11px;color:#5c4c37;margin-top:5px;padding-top:5px;border-top:1px solid rgba(44,33,22,.18);line-height:1.4;}
-  td.blank{background:#fffaf0;}
+  td.blank{background:#fffaf0;border-left:none;border-right:none;}
   td.step.skip{background:repeating-linear-gradient(135deg, #fffaf0 0 7px, #e4ddcb 7px 14px) !important;border-style:dashed;padding:0;}
-  td.step-end{position:relative;}
-  td.step-end::after{content:"";position:absolute;left:-4000px;right:0;bottom:-1px;height:1px;background:rgba(38,33,28,.32);}
   .credit-footer{margin-top:14px;font-size:10.5px;color:#8b7f6f;}
   .credit-footer a{color:#2f6f66;}
 `;
 
-function slugify(s){
-  return (s || 'recipe-diagram').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'recipe-diagram';
-}
+    function slugify(s) {
+        return (s || 'recipe-diagram').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'recipe-diagram';
+    }
 
-function exportSnippetHTML(){
-  return exportRootEl.querySelector('#output').innerHTML;
-}
+    function exportSnippetHTML() {
+        return exportRootEl.querySelector('#output').innerHTML;
+    }
 
-function buildStandaloneHTML(){
-  return `<!doctype html>
+    function buildStandaloneHTML() {
+        return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -707,268 +819,340 @@ ${exportSnippetHTML()}
 </div>
 </body>
 </html>`;
-}
-
-function downloadBlob(content, filename, mime){
-  const blob = new Blob([content], {type: mime});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
-
-document.getElementById('btnExportHtml').addEventListener('click', () => {
-  if(!outEl.innerHTML.trim() || errEl.style.display === 'block') return;
-  downloadBlob(buildStandaloneHTML(), `${slugify(currentTitle)}.html`, 'text/html;charset=utf-8');
-});
-
-document.getElementById('btnPrint').addEventListener('click', () => {
-  if(!outEl.innerHTML.trim() || errEl.style.display === 'block') return;
-  const w = window.open('', '_blank');
-  if(!w){ alert('Please allow pop-ups to print the diagram.'); return; }
-  w.document.write(buildStandaloneHTML());
-  w.document.close();
-  w.onload = () => { w.focus(); w.print(); };
-});
-
-// Rasterizes the diagram to a JPG using plain Canvas 2D drawing (rects, borders,
-// wrapped text) based on the *actual rendered* cell geometry read straight from
-// the live table via getBoundingClientRect(). This avoids the classic
-// SVG-foreignObject-to-canvas approach, which many browsers (Safari in
-// particular) treat as "tainting" the canvas for security reasons — silently
-// failing toBlob()/toDataURL(). Drawing primitives directly has no such issue.
-function wrapMixedText(ctx, segments, x, y, maxWidth, lineHeight, opts){
-  // segments: [{text, font, color}], drawn as one flowing, word-wrapped paragraph.
-  const align = (opts && opts.align) || 'left';
-  const words = [];
-  segments.forEach(seg => {
-    seg.text.split(/(\s+)/).forEach(tok => { if(tok !== '') words.push({tok, font:seg.font, color:seg.color}); });
-  });
-  let lines = [[]];
-  let lineWidth = 0;
-  words.forEach(w => {
-    ctx.font = w.font;
-    const tokWidth = ctx.measureText(w.tok).width;
-    if(/^\s+$/.test(w.tok)){
-      if(lineWidth > 0){ lines[lines.length-1].push(w); lineWidth += tokWidth; }
-      return;
     }
-    if(lineWidth + tokWidth > maxWidth && lineWidth > 0){
-      lines.push([]); lineWidth = 0;
-    }
-    lines[lines.length-1].push(w);
-    lineWidth += tokWidth;
-  });
-  lines = lines.map(line => {
-    while(line.length && /^\s+$/.test(line[line.length-1].tok)) line.pop();
-    return line;
-  }).filter(l => l.length);
 
-  let cy = y;
-  lines.forEach(line => {
-    let lineW = 0;
-    line.forEach(w => { ctx.font = w.font; lineW += ctx.measureText(w.tok).width; });
-    let cx = align === 'center' ? x + (maxWidth - lineW)/2 : x;
-    line.forEach(w => {
-      ctx.font = w.font;
-      ctx.fillStyle = w.color;
-      ctx.textBaseline = 'alphabetic';
-      ctx.textAlign = 'left';
-      ctx.fillText(w.tok, cx, cy);
-      cx += ctx.measureText(w.tok).width;
+    function downloadBlob(content, filename, mime) {
+        const blob = new Blob([content], {type: mime});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+
+    document.getElementById('btnExportHtml').addEventListener('click', () => {
+        if (!outEl.innerHTML.trim() || errEl.style.display === 'block') return;
+        downloadBlob(buildStandaloneHTML(), `${slugify(currentTitle)}.html`, 'text/html;charset=utf-8');
     });
-    cy += lineHeight;
-  });
-  return cy - lineHeight; // baseline of last drawn line
-}
 
-function drawHatch(ctx, x, y, w, h, bg, stripe){
-  ctx.save();
-  ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
-  ctx.fillStyle = bg; ctx.fillRect(x,y,w,h);
-  ctx.strokeStyle = stripe; ctx.lineWidth = 7;
-  const step = 14;
-  for(let d = -h; d < w+h; d += step){
-    ctx.beginPath();
-    ctx.moveTo(x+d, y+h);
-    ctx.lineTo(x+d+h, y);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function roundRectPath(ctx, x, y, w, h, r){
-  ctx.beginPath();
-  ctx.moveTo(x+r, y);
-  ctx.arcTo(x+w, y, x+w, y+h, r);
-  ctx.arcTo(x+w, y+h, x, y+h, r);
-  ctx.arcTo(x, y+h, x, y, r);
-  ctx.arcTo(x, y, x+w, y, r);
-  ctx.closePath();
-}
-
-function renderDiagramCanvas(){
-  const frameEl = exportRootEl.querySelector('.diagram-frame');
-  const titleEl = exportRootEl.querySelector('.recipe-title');
-  if(!frameEl) return null;
-
-  const rootRect = exportRootEl.getBoundingClientRect();
-  const PAD = 24;
-  const FOOTER_H = 28;
-  const scale = 2; // render at 2x for crisp JPGs
-  const width = Math.ceil(rootRect.width) + PAD*2;
-  const height = Math.ceil(rootRect.height) + PAD*2 + FOOTER_H;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width*scale; canvas.height = height*scale;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(scale, scale);
-  ctx.fillStyle = '#fffaf0';
-  ctx.fillRect(0,0,width,height);
-
-  const originX = rootRect.left - PAD;
-  const originY = rootRect.top - PAD;
-  const rel = (el) => {
-    const r = el.getBoundingClientRect();
-    return { x: r.left - originX, y: r.top - originY, w: r.width, h: r.height };
-  };
-
-  // Title + underline bar (the underline is a ::after pseudo-element in CSS,
-  // not present in the DOM, so it's redrawn manually here).
-  if(titleEl){
-    const t = rel(titleEl);
-    ctx.font = '700 23px Georgia, "Iowan Old Style", "Palatino Linotype", serif';
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = '#26211c';
-    ctx.fillText(titleEl.textContent, t.x, t.y + 18);
-    ctx.fillStyle = '#2f6f66';
-    ctx.fillRect(t.x, t.y + 26, 56, 3);
-  }
-
-  // Frame border (rounded rect, 2px ink stroke) + clip for cell contents.
-  const frame = rel(frameEl);
-  roundRectPath(ctx, frame.x, frame.y, frame.w, frame.h, 10);
-  ctx.save(); ctx.clip();
-
-  const cells = Array.from(frameEl.querySelectorAll('td'));
-  cells.forEach(td => {
-    const r = rel(td);
-    const cls = td.className || '';
-    const isPrereq = cls.includes('prereq');
-    const isSkip = cls.includes('skip');
-    const isStep = cls.includes('step') && !isSkip;
-    const isIngredient = cls.includes('ingredient');
-
-    if(isSkip){
-      drawHatch(ctx, r.x, r.y, r.w, r.h, '#fffaf0', '#e4ddcb');
-    } else if(isPrereq){
-      ctx.fillStyle = '#2f6f66';
-      ctx.fillRect(r.x, r.y, r.w, r.h);
-    } else if(isStep){
-      ctx.fillStyle = getComputedStyle(td).backgroundColor || '#f2ece0';
-      ctx.fillRect(r.x, r.y, r.w, r.h);
-    } else {
-      ctx.fillStyle = '#fffaf0';
-      ctx.fillRect(r.x, r.y, r.w, r.h);
-    }
-
-    if(isIngredient){
-      ctx.fillStyle = '#2f6f66';
-      ctx.fillRect(r.x, r.y, 4, r.h);
-    }
-
-    // border
-    ctx.strokeStyle = isPrereq ? '#1f544c' : 'rgba(38,33,28,.32)';
-    ctx.lineWidth = 1;
-    if(isSkip) ctx.setLineDash([5,4]); else ctx.setLineDash([]);
-    ctx.strokeRect(r.x+0.5, r.y+0.5, r.w-1, r.h-1);
-    ctx.setLineDash([]);
-
-    const padX = r.x + 13, padY0 = r.y + 9, innerW = Math.max(20, r.w - 26);
-
-    if(isPrereq){
-      ctx.font = '600 11.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
-      ctx.fillStyle = '#f4faf8';
-      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-      ctx.fillText('▸ ' + td.textContent.trim().toUpperCase(), r.x + 16, r.y + r.h/2 + 4);
-    } else if(isIngredient){
-      const bEl = td.querySelector('b');
-      const noteEl = td.querySelector('.note');
-      const optEl = td.querySelector('.opt');
-      const amount = bEl ? bEl.textContent : '';
-      const clone = td.cloneNode(true);
-      clone.querySelectorAll('b, .note, .opt').forEach(n => n.remove());
-      const desc = clone.textContent.trim();
-
-      let cx = padX, cy = padY0 + 11;
-      const monoFont = '700 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-      const descFont = '400 13.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
-      if(amount){
-        ctx.font = monoFont;
-        const badgeW = ctx.measureText(amount).width + 14;
-        ctx.fillStyle = '#e6f1ef';
-        ctx.strokeStyle = '#c3ddd7';
-        roundRectPath(ctx, cx, cy-13, badgeW, 18, 5);
-        ctx.fill(); ctx.lineWidth = 1; ctx.stroke();
-        ctx.fillStyle = '#1b4a42';
-        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-        ctx.fillText(amount, cx+7, cy+1);
-        cx += badgeW + 7;
-      }
-      const lastY = wrapMixedText(ctx, [
-        {text: desc + (optEl ? '  '+optEl.textContent : ''), font: descFont, color: optEl && !desc ? '#a8895a' : '#3a332b'}
-      ], cx, cy+1, innerW - (cx-padX), 17);
-      let ny = Math.max(lastY + 20, cy + 15);
-      if(noteEl){
-        ctx.font = '400 12.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
-        wrapMixedText(ctx, [{text: noteEl.textContent, font: ctx.font, color:'#8a8074'}], padX, ny, innerW, 16);
-      }
-    } else if(isStep){
-      const labelEl = td.querySelector('.label');
-      const detailEl = td.querySelector('.detail');
-      if(labelEl){
-        ctx.font = '700 13.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
-        const midX = r.x + r.w/2;
-        let ly = r.y + r.h/2 - (detailEl ? 8 : 0) + 4;
-        wrapMixedText(ctx, [{text: labelEl.textContent, font: ctx.font, color:'#2c2116'}], r.x+8, ly, r.w-16, 16, {align:'center'});
-        if(detailEl){
-          ctx.strokeStyle = 'rgba(44,33,22,.18)';
-          ctx.beginPath(); ctx.moveTo(r.x+10, ly+9); ctx.lineTo(r.x+r.w-10, ly+9); ctx.stroke();
-          ctx.font = '400 11px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
-          wrapMixedText(ctx, [{text: detailEl.textContent, font: ctx.font, color:'#5c4c37'}], r.x+8, ly+24, r.w-16, 14, {align:'center'});
+    document.getElementById('btnPrint').addEventListener('click', () => {
+        if (!outEl.innerHTML.trim() || errEl.style.display === 'block') return;
+        const w = window.open('', '_blank');
+        if (!w) {
+            alert('Please allow pop-ups to print the diagram.');
+            return;
         }
-      }
+        w.document.write(buildStandaloneHTML());
+        w.document.close();
+        w.onload = () => {
+            w.focus();
+            w.print();
+        };
+    });
+
+    // Rasterizes the diagram to a JPG using plain Canvas 2D drawing (rects, borders,
+    // wrapped text) based on the *actual rendered* cell geometry read straight from
+    // the live table via getBoundingClientRect(). This avoids the classic
+    // SVG-foreignObject-to-canvas approach, which many browsers (Safari in
+    // particular) treat as "tainting" the canvas for security reasons — silently
+    // failing toBlob()/toDataURL(). Drawing primitives directly has no such issue.
+    function wrapMixedText(ctx, segments, x, y, maxWidth, lineHeight, opts) {
+        // segments: [{text, font, color}], drawn as one flowing, word-wrapped paragraph.
+        const align = (opts && opts.align) || 'left';
+        const words = [];
+        segments.forEach(seg => {
+            seg.text.split(/(\s+)/).forEach(tok => {
+                if (tok !== '') words.push({tok, font: seg.font, color: seg.color});
+            });
+        });
+        let lines = [[]];
+        let lineWidth = 0;
+        words.forEach(w => {
+            ctx.font = w.font;
+            const tokWidth = ctx.measureText(w.tok).width;
+            if (/^\s+$/.test(w.tok)) {
+                if (lineWidth > 0) {
+                    lines[lines.length - 1].push(w);
+                    lineWidth += tokWidth;
+                }
+                return;
+            }
+            if (lineWidth + tokWidth > maxWidth && lineWidth > 0) {
+                lines.push([]);
+                lineWidth = 0;
+            }
+            lines[lines.length - 1].push(w);
+            lineWidth += tokWidth;
+        });
+        lines = lines.map(line => {
+            while (line.length && /^\s+$/.test(line[line.length - 1].tok)) line.pop();
+            return line;
+        }).filter(l => l.length);
+
+        let cy = y;
+        lines.forEach(line => {
+            let lineW = 0;
+            line.forEach(w => {
+                ctx.font = w.font;
+                lineW += ctx.measureText(w.tok).width;
+            });
+            let cx = align === 'center' ? x + (maxWidth - lineW) / 2 : x;
+            line.forEach(w => {
+                ctx.font = w.font;
+                ctx.fillStyle = w.color;
+                ctx.textBaseline = 'alphabetic';
+                ctx.textAlign = 'left';
+                ctx.fillText(w.tok, cx, cy);
+                cx += ctx.measureText(w.tok).width;
+            });
+            cy += lineHeight;
+        });
+        return cy - lineHeight; // baseline of last drawn line
     }
-  });
-  ctx.restore(); // remove frame clip
 
-  // Frame stroke drawn after fills so it sits crisply on top.
-  roundRectPath(ctx, frame.x, frame.y, frame.w, frame.h, 10);
-  ctx.strokeStyle = '#26211c'; ctx.lineWidth = 2; ctx.stroke();
+    function drawHatch(ctx, x, y, w, h, bg, stripe) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+        ctx.fillStyle = bg;
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = stripe;
+        ctx.lineWidth = 7;
+        const step = 14;
+        for (let d = -h; d < w + h; d += step) {
+            ctx.beginPath();
+            ctx.moveTo(x + d, y + h);
+            ctx.lineTo(x + d + h, y);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
 
-  // Footer credit line.
-  ctx.font = '400 10.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
-  ctx.fillStyle = '#8b7f6f';
-  ctx.textAlign = 'left';
-  ctx.fillText('Diagram style inspired by CookingForEngineers.com', frame.x, frame.y + frame.h + 20);
+    function roundRectPath(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
 
-  return canvas;
-}
+    function renderDiagramCanvas() {
+        const frameEl = exportRootEl.querySelector('.diagram-frame');
+        const titleEl = exportRootEl.querySelector('.recipe-title');
+        if (!frameEl) return null;
 
-document.getElementById('btnExportJpg').addEventListener('click', () => {
-  if(!outEl.innerHTML.trim() || errEl.style.display === 'block') return;
-  const canvas = renderDiagramCanvas();
-  if(!canvas){ alert('Nothing to export yet.'); return; }
-  canvas.toBlob((blob) => {
-    if(!blob){ alert('JPG export failed to render in this browser. Try "Export HTML" or "Print / PDF" instead.'); return; }
-    const jpgUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = jpgUrl; a.download = `${slugify(currentTitle)}.jpg`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(jpgUrl), 2000);
-  }, 'image/jpeg', 0.92);
-});
+        const rootRect = exportRootEl.getBoundingClientRect();
+        const PAD = 24;
+        const FOOTER_H = 28;
+        const scale = 2; // render at 2x for crisp JPGs
+        const width = Math.ceil(rootRect.width) + PAD * 2;
+        const height = Math.ceil(rootRect.height) + PAD * 2 + FOOTER_H;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.fillStyle = '#fffaf0';
+        ctx.fillRect(0, 0, width, height);
+
+        const originX = rootRect.left - PAD;
+        const originY = rootRect.top - PAD;
+        const rel = (el) => {
+            const r = el.getBoundingClientRect();
+            return {x: r.left - originX, y: r.top - originY, w: r.width, h: r.height};
+        };
+
+        // Title + underline bar (the underline is a ::after pseudo-element in CSS,
+        // not present in the DOM, so it's redrawn manually here).
+        if (titleEl) {
+            const t = rel(titleEl);
+            ctx.font = '700 23px Georgia, "Iowan Old Style", "Palatino Linotype", serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+            ctx.fillStyle = '#26211c';
+            ctx.fillText(titleEl.textContent, t.x, t.y + 18);
+            ctx.fillStyle = '#2f6f66';
+            ctx.fillRect(t.x, t.y + 26, 56, 3);
+        }
+
+        // Frame border (rounded rect, 2px ink stroke) + clip for cell contents.
+        const frame = rel(frameEl);
+        roundRectPath(ctx, frame.x, frame.y, frame.w, frame.h, 10);
+        ctx.save();
+        ctx.clip();
+
+        const cells = Array.from(frameEl.querySelectorAll('td'));
+        cells.forEach(td => {
+            const r = rel(td);
+            const cls = td.className || '';
+            const isPrereq = cls.includes('prereq');
+            const isSkip = cls.includes('skip');
+            const isStep = cls.includes('step') && !isSkip;
+            const isIngredient = cls.includes('ingredient');
+            const isBlank = cls.includes('blank');
+
+            if (isSkip) {
+                drawHatch(ctx, r.x, r.y, r.w, r.h, '#fffaf0', '#e4ddcb');
+            } else if (isPrereq) {
+                ctx.fillStyle = '#2f6f66';
+                ctx.fillRect(r.x, r.y, r.w, r.h);
+            } else if (isStep) {
+                ctx.fillStyle = getComputedStyle(td).backgroundColor || '#f2ece0';
+                ctx.fillRect(r.x, r.y, r.w, r.h);
+            } else {
+                ctx.fillStyle = '#fffaf0';
+                ctx.fillRect(r.x, r.y, r.w, r.h);
+            }
+
+            if (isIngredient) {
+                ctx.fillStyle = '#2f6f66';
+                ctx.fillRect(r.x, r.y, 4, r.h);
+            }
+
+            // border — blank cells only get top/bottom (matching the CSS rule that
+            // suppresses their left/right border so vertical step-column lines don't
+            // bleed through empty space); every other cell gets a full rect.
+            ctx.strokeStyle = isPrereq ? '#1f544c' : 'rgba(38,33,28,.32)';
+            ctx.lineWidth = 1;
+            if (isSkip) ctx.setLineDash([5, 4]); else ctx.setLineDash([]);
+            if (isBlank) {
+                const x0 = r.x + 0.5, x1 = r.x + r.w - 0.5;
+                ctx.beginPath();
+                ctx.moveTo(x0, r.y + 0.5);
+                ctx.lineTo(x1, r.y + 0.5);
+                ctx.moveTo(x0, r.y + r.h - 0.5);
+                ctx.lineTo(x1, r.y + r.h - 0.5);
+                ctx.stroke();
+            } else {
+                ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+            }
+            ctx.setLineDash([]);
+
+            const padX = r.x + 13, padY0 = r.y + 9, innerW = Math.max(20, r.w - 26);
+
+            if (isPrereq) {
+                ctx.font = '600 11.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+                ctx.fillStyle = '#f4faf8';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'alphabetic';
+                ctx.fillText('▸ ' + td.textContent.trim().toUpperCase(), r.x + 16, r.y + r.h / 2 + 4);
+            } else if (isIngredient) {
+                const bEl = td.querySelector('b');
+                const noteEl = td.querySelector('.note');
+                const optEl = td.querySelector('.opt');
+                const amount = bEl ? bEl.textContent : '';
+                const clone = td.cloneNode(true);
+                clone.querySelectorAll('b, .note, .opt').forEach(n => n.remove());
+                const desc = clone.textContent.trim();
+
+                let cx = padX, cy = padY0 + 11;
+                const monoFont = '700 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+                const descFont = '400 13.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+                if (amount) {
+                    ctx.font = monoFont;
+                    const badgeW = ctx.measureText(amount).width + 14;
+                    ctx.fillStyle = '#e6f1ef';
+                    ctx.strokeStyle = '#c3ddd7';
+                    roundRectPath(ctx, cx, cy - 13, badgeW, 18, 5);
+                    ctx.fill();
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    ctx.fillStyle = '#1b4a42';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'alphabetic';
+                    ctx.fillText(amount, cx + 7, cy + 1);
+                    cx += badgeW + 7;
+                }
+                const lastY = wrapMixedText(ctx, [
+                    {
+                        text: desc + (optEl ? '  ' + optEl.textContent : ''),
+                        font: descFont,
+                        color: optEl && !desc ? '#a8895a' : '#3a332b'
+                    }
+                ], cx, cy + 1, innerW - (cx - padX), 17);
+                let ny = Math.max(lastY + 20, cy + 15);
+                if (noteEl) {
+                    ctx.font = '400 12.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+                    wrapMixedText(ctx, [{
+                        text: noteEl.textContent,
+                        font: ctx.font,
+                        color: '#8a8074'
+                    }], padX, ny, innerW, 16);
+                }
+            } else if (isStep) {
+                const labelEl = td.querySelector('.label');
+                const detailEl = td.querySelector('.detail');
+                if (labelEl) {
+                    ctx.font = '700 13.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+                    const midX = r.x + r.w / 2;
+                    let ly = r.y + r.h / 2 - (detailEl ? 8 : 0) + 4;
+                    wrapMixedText(ctx, [{
+                        text: labelEl.textContent,
+                        font: ctx.font,
+                        color: '#2c2116'
+                    }], r.x + 8, ly, r.w - 16, 16, {align: 'center'});
+                    if (detailEl) {
+                        ctx.strokeStyle = 'rgba(44,33,22,.18)';
+                        ctx.beginPath();
+                        ctx.moveTo(r.x + 10, ly + 9);
+                        ctx.lineTo(r.x + r.w - 10, ly + 9);
+                        ctx.stroke();
+                        ctx.font = '400 11px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+                        wrapMixedText(ctx, [{
+                            text: detailEl.textContent,
+                            font: ctx.font,
+                            color: '#5c4c37'
+                        }], r.x + 8, ly + 24, r.w - 16, 14, {align: 'center'});
+                    }
+                }
+            }
+        });
+        ctx.restore(); // remove frame clip
+
+        // Frame stroke drawn after fills so it sits crisply on top.
+        roundRectPath(ctx, frame.x, frame.y, frame.w, frame.h, 10);
+        ctx.strokeStyle = '#26211c';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Footer credit line.
+        ctx.font = '400 10.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+        ctx.fillStyle = '#8b7f6f';
+        ctx.textAlign = 'left';
+        ctx.fillText('Diagram style inspired by CookingForEngineers.com', frame.x, frame.y + frame.h + 20);
+
+        return canvas;
+    }
+
+    document.getElementById('btnExportJpg').addEventListener('click', () => {
+        if (!outEl.innerHTML.trim() || errEl.style.display === 'block') return;
+        const canvas = renderDiagramCanvas();
+        if (!canvas) {
+            alert('Nothing to export yet.');
+            return;
+        }
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                alert('JPG export failed to render in this browser. Try "Export HTML" or "Print / PDF" instead.');
+                return;
+            }
+            const jpgUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = jpgUrl;
+            a.download = `${slugify(currentTitle)}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(jpgUrl), 2000);
+        }, 'image/jpeg', 0.92);
+    });
 </script>
 </body>
 </html>
