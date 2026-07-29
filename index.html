@@ -142,7 +142,6 @@
   }
   table.diagram td{
     border:1px solid var(--line);
-    vertical-align:top;
     padding:9px 13px;
     font-size:13.5px;
     line-height:1.4;
@@ -194,8 +193,10 @@
   }
   td.step{
     text-align:center;
+    vertical-align:middle;
     min-width:112px;
     color:#2c2116;
+    background:#fff;
   }
   td.step .label{
     font-weight:700;
@@ -218,6 +219,16 @@
     cursor:help;
   }
   td.step.continuation{}
+  td.step-end{position:relative;}
+  td.step-end::after{
+    content:"";
+    position:absolute;
+    left:-4000px;
+    right:0;
+    bottom:-1px;
+    height:1px;
+    background:var(--line);
+  }
   #view-pane .empty{color:#8b8073;font-style:italic;}
   #toolbar{
     display:flex;
@@ -513,16 +524,6 @@ function inlineMarkdown(str){
   return esc(str).replace(/\*(.+?)\*/g, '<b>$1</b>');
 }
 
-// Generates a warm amber-to-terracotta ramp across the step columns, so the
-// flow of the recipe reads left-to-right by both position and color depth.
-function stepColumnColor(col, colCount){
-  const hue = 32;
-  const t = colCount > 1 ? (col-1) / (colCount-1) : 0;
-  const lightness = 90 - t * 34; // 90% -> 56%
-  const saturation = 58 + t * 10;
-  return `hsl(${hue} ${saturation}% ${lightness}%)`;
-}
-
 function render(recipe){
   const totalCols = 1 + recipe.colCount;
   let html = '';
@@ -588,9 +589,9 @@ function render(recipe){
       if(cell.skip){
         html += `<td class="step skip" rowspan="${span}" title="This ingredient is not used in this step — the cell skips over it"></td>`;
       } else if(cell.step){
-        const cls = cell.isFirstUsedRun ? 'step' : 'step continuation';
-        const bg = stepColumnColor(c, recipe.colCount);
-        html += `<td class="${cls}" rowspan="${span}" style="background:${bg}">`;
+        let cls = cell.isFirstUsedRun ? 'step' : 'step continuation';
+        if(cell.bottom === cell.step.bottom) cls += ' step-end'; // true end of the step: extend its bottom edge leftward
+        html += `<td class="${cls}" rowspan="${span}">`;
         if(cell.isFirstUsedRun){
           html += `<div class="label">${inlineMarkdown(cell.step.label)}</div>`;
           if(cell.step.detail) html += `<div class="detail">${inlineMarkdown(cell.step.detail)}</div>`;
@@ -665,18 +666,20 @@ const EXPORT_CSS = `
   .recipe-title::after{content:"";display:block;width:56px;height:3px;margin:8px 0 16px;background:#2f6f66;border-radius:3px;}
   .diagram-frame{display:inline-block;border:2px solid #26211c;border-radius:10px;overflow:hidden;}
   table.diagram{border-collapse:collapse;background:#fffaf0;}
-  table.diagram td{border:1px solid rgba(38,33,28,.32);vertical-align:top;padding:9px 13px;font-size:13.5px;line-height:1.4;}
+  table.diagram td{border:1px solid rgba(38,33,28,.32);padding:9px 13px;font-size:13.5px;line-height:1.4;}
   td.prereq{background:#2f6f66;color:#f4faf8;text-align:left;font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:11.5px;padding:9px 16px;border-color:#1f544c;}
   td.prereq::before{content:"▸ ";}
   td.ingredient{background:#fffaf0;min-width:230px;border-left:4px solid #2f6f66;color:#3a332b;}
   td.ingredient b{display:inline-block;font-style:normal;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#1b4a42;background:#e6f1ef;border:1px solid #c3ddd7;border-radius:5px;padding:1px 7px;margin-right:7px;}
   td.ingredient .note{color:#8a8074;font-size:12.5px;}
   td.ingredient .opt{display:inline-block;margin-left:6px;font-size:9.5px;color:#a8895a;border:1px solid #d8bd8f;background:#fbf1de;border-radius:3px;padding:0 5px;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;}
-  td.step{text-align:center;min-width:112px;color:#2c2116;}
+  td.step{text-align:center;vertical-align:middle;min-width:112px;color:#2c2116;background:#fff;}
   td.step .label{font-weight:700;font-size:13.5px;letter-spacing:.01em;}
   td.step .detail{font-size:11px;color:#5c4c37;margin-top:5px;padding-top:5px;border-top:1px solid rgba(44,33,22,.18);line-height:1.4;}
   td.blank{background:#fffaf0;}
   td.step.skip{background:repeating-linear-gradient(135deg, #fffaf0 0 7px, #e4ddcb 7px 14px) !important;border-style:dashed;padding:0;}
+  td.step-end{position:relative;}
+  td.step-end::after{content:"";position:absolute;left:-4000px;right:0;bottom:-1px;height:1px;background:rgba(38,33,28,.32);}
   .credit-footer{margin-top:14px;font-size:10.5px;color:#8b7f6f;}
   .credit-footer a{color:#2f6f66;}
 `;
